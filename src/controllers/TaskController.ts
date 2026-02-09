@@ -1,55 +1,54 @@
 import { Request, Response } from 'express';
-import { Task } from '../models/Task';
+import prisma from '../lib/prisma';
 
-let tasks: Task[] = [
-  { id: 1, title: "task1", completed: false },
-  { id: 2, title: "task2", completed: true }
-];
+export const getTasks = async (req: Request, res: Response) => {
+  try {
+    const tasks = await prisma.task.findMany({
+      orderBy: {createdAt: 'desc'}
+    });
 
-export const getTasks = (req: Request, res: Response) => {
-  res.json(tasks);
+    res.json(tasks);
+  }catch (error) {
+    res.status(500).json({error: "Error fetching tasks"});
+  }
 };
 
-export const createTask = (req: Request, res: Response) => {
-  const newTask: Task = {
-    id: tasks.length + 1,
-    title: req.body.title,
-    completed: false
-  };
-  tasks.push(newTask);
-  res.status(201).json(newTask);
+export const createTask = async (req: Request, res: Response) => {
+  try {
+    const {title, completed} = req.body;
+    const newTask = await prisma.task.create({
+      data: {title, completed}
+    });
+
+    res.status(201).json(newTask);
+  } catch (error) {
+    res.status(400).json({error: "Error creating task"});
+  }
 };
 
-export const deleteTask = (req: Request, res: Response) => {
-  const {id} = req.params;
-  
-  const originalLength = tasks.length;
-  tasks = tasks.filter(t => t.id !== parseInt(id));
+export const updateTask = async (req: Request, res: Response) => {
+  try {
+    const {id} = req.params;
+    const {title, completed} = req.body;
 
-  if (tasks.length === originalLength) {
-    return res.status(404).json({message: "Task not found"});
+    const updatedTask = await prisma.task.update({
+      where: {id: Number(id)},
+      data: {title, completed}
+    });
+    res.json(updatedTask);
+  }catch (error) {
+    res.status(404).json({error: "Task not found"});
   }
-
-  res.json({message: "Task deleted successfully"});
 };
 
-export const updateTask = (req: Request, res: Response) => {
-  const {id} = req.params;
-  const {title, completed} = req.body;
-
-  const taskIndex = tasks.findIndex(t => t.id === parseInt(id));
-
-  if (taskIndex === -1) {
-    return res.status(404).json({ message: "Task not found" });
+export const deleteTask = async (req: Request, res: Response) => {
+  try {
+    const {id} = req.params;
+    await prisma.task.delete({
+      where: {id: Number(id)}
+    });
+    res.json({message: "Task deleted"});
+  } catch (error) {
+    res.status(404).json({error: "Task not found"});
   }
-
-  if (title !== undefined){
-    tasks[taskIndex].title = title;
-  }
-  
-  if (completed !== undefined){
-    tasks[taskIndex].completed = completed;
-  }
-
-  res.json(tasks[taskIndex]);
 };
