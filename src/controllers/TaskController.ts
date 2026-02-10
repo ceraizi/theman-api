@@ -5,11 +5,18 @@ import { ZodError } from 'zod';
 
 export const getTasks = async (req: Request, res: Response) => {
   try {
-    const {completed} = req.query;
+    const {completed, title} = req.query;
     const where: any = {};
 
     if (completed !== undefined) {
       where.completed = completed === 'true';
+    }
+
+    if (title) {
+      where.title = {
+        contains: String(title),
+        mode: 'insensitive'
+      };
     }
 
     const tasks = await prisma.task.findMany({
