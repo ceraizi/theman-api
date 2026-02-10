@@ -1,5 +1,7 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
+import { createTaskSchema, updateTaskSchema } from '../schemas/taskSchema';
+import { ZodError } from 'zod';
 
 export const getTasks = async (req: Request, res: Response) => {
   try {
@@ -15,28 +17,51 @@ export const getTasks = async (req: Request, res: Response) => {
 
 export const createTask = async (req: Request, res: Response) => {
   try {
-    const {title, completed} = req.body;
+    const validatedData = createTaskSchema.parse(req.body);
+
     const newTask = await prisma.task.create({
-      data: {title, completed}
+      data: validatedData
     });
 
     res.status(201).json(newTask);
   } catch (error) {
-    res.status(400).json({error: "Error creating task"});
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.issues.map(err => ({
+          field: err.path[0],
+          message: err.message
+        }))
+      });
+    }
+
+    res.status(500).json({ error: "Internal server error" });
   }
 };
 
 export const updateTask = async (req: Request, res: Response) => {
   try {
     const {id} = req.params;
-    const {title, completed} = req.body;
+
+    const validatedData = updateTaskSchema.parse(req.body);
 
     const updatedTask = await prisma.task.update({
       where: {id: Number(id)},
-      data: {title, completed}
+      data: validatedData
     });
+
     res.json(updatedTask);
   }catch (error) {
+    if (error instanceof ZodError) {
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.issues.map(err => ({
+          field: err.path[0],
+          message: err.message
+        }))
+      });
+    }
+
     res.status(404).json({error: "Task not found"});
   }
 };
