@@ -17,25 +17,13 @@ export const getTasks = async (req: Request, res: Response) => {
 
 export const createTask = async (req: Request, res: Response) => {
   try {
-    const validatedData = createTaskSchema.parse(req.body);
-
     const newTask = await prisma.task.create({
-      data: validatedData
+      data: req.body
     });
 
     res.status(201).json(newTask);
   } catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: "Validation error",
-        errors: error.issues.map(err => ({
-          field: err.path[0],
-          message: err.message
-        }))
-      });
-    }
-
-    res.status(500).json({ error: "Internal server error" });
+    res.status(500).json({error: "Internal server error"});
   }
 };
 
@@ -43,25 +31,13 @@ export const updateTask = async (req: Request, res: Response) => {
   try {
     const {id} = req.params;
 
-    const validatedData = updateTaskSchema.parse(req.body);
-
     const updatedTask = await prisma.task.update({
       where: {id: Number(id)},
-      data: validatedData
+      data: req.body
     });
 
     res.json(updatedTask);
-  }catch (error) {
-    if (error instanceof ZodError) {
-      return res.status(400).json({
-        message: "Validation error",
-        errors: error.issues.map(err => ({
-          field: err.path[0],
-          message: err.message
-        }))
-      });
-    }
-
+  } catch (error) {
     res.status(404).json({error: "Task not found"});
   }
 };
