@@ -2,69 +2,56 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { createTaskSchema, updateTaskSchema } from '../schemas/taskSchema';
 import { ZodError } from 'zod';
+import { AppError } from '../utils/AppError';
+import { catchAsync } from '../utils/catchAsync';
+import { Prisma } from '@prisma/client';
 
-export const getTasks = async (req: Request, res: Response) => {
-  try {
-    const {completed, title} = req.query;
-    const where: any = {};
+export const getTasks = catchAsync(async (req: Request, res: Response) => {
+  const {completed} = req.query;
+  const where: Prisma.TaskWhereInput = {};
 
-    if (completed !== undefined) {
-      where.completed = completed === 'true';
-    }
-
-    if (title) {
-      where.title = {
-        contains: String(title),
-        mode: 'insensitive'
-      };
-    }
-
-    const tasks = await prisma.task.findMany({
-      where,
-      orderBy: {createdAt: 'desc'}
-    });
-
-    res.json(tasks);
-  }catch (error) {
-    res.status(500).json({error: "Error fetching tasks"});
+  if (completed !== undefined) {
+    where.completed = completed === 'true';
   }
-};
 
-export const createTask = async (req: Request, res: Response) => {
-  try {
-    const newTask = await prisma.task.create({
-      data: req.body
-    });
+  const tasks = await prisma.task.findMany({ where });
+  res.json(tasks);
+});
 
-    res.status(201).json(newTask);
-  } catch (error) {
-    res.status(500).json({error: "Internal server error"});
+export const createTask = catchAsync (async (req: Request, res: Response) => {
+  const newTask = await prisma.task.create({
+    data: req.body
+  });
+
+  res.status(201).json(newTask);
+});
+
+export const updateTask = catchAsync (async (req: Request, res: Response) => {
+  const {id} = req.params;
+
+  const task = await prisma.task.findUnique({where: {id: Number(id)}});
+
+  if (!task) {
+    throw new AppError("Task not found", 404);
   }
-};
 
-export const updateTask = async (req: Request, res: Response) => {
-  try {
-    const {id} = req.params;
+  const updatedTask = await prisma.task.update({
+    where: {id: Number(id)},
+    data: req.body
+  });
 
-    const updatedTask = await prisma.task.update({
-      where: {id: Number(id)},
-      data: req.body
-    });
+  res.json(updatedTask);
+});
 
-    res.json(updatedTask);
-  } catch (error) {
-    res.status(404).json({error: "Task not found"});
+export const deleteTask = catchAsync(async (req: Request, res: Response) => {
+  const {id} = req.params;
+
+  const task = await prisma.task.findUnique({where: {id: Number(id)}});
+
+  if (!task) {
+    throw new AppError("Task not found", 404);
   }
-};
 
-export const deleteTask = async (req: Request, res: Response) => {
-  try {
-    const {id} = req.params;
-    await prisma.task.delete({
-      where: {id: Number(id)}
-    });
-    res.json({message: "Task deleted"});
-  } catch (error) {
-    res.status(404).json({error: "Task not found"});
-  }
-};
+  await prisma.task.delete({where: {id: Number(id)}});
+  res.json({message: "Task Deleted"});
+});
